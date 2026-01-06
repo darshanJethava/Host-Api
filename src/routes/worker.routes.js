@@ -13,10 +13,7 @@ import allowRoles from "../middleware/role.middleware.js";
 
 const router = express.Router();
 
-/* =========================
-   WORKER MANAGEMENT
-   ADMIN ONLY
-========================= */
+
 
 router.post("/", auth, allowRoles("ADMIN"), createWorker);
 router.get("/", auth, allowRoles("ADMIN"), getWorkers);
