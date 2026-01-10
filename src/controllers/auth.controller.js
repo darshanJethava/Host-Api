@@ -3,19 +3,36 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 /* =========================
-   REGISTER ADMIN (ONE TIME)
+   REGISTER ADMIN (ONE TIME PER SHOP)
 ========================= */
 export const register = async (req, res) => {
   try {
-    const { name, phone, email, password, role, shopId } = req.body;
+    const { name, phone, email, password, shopId } = req.body;
 
     if (!name || !phone || !password || !shopId) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({
+        message: "Name, phone, password and shopId are required"
+      });
     }
 
-    const exists = await User.findOne({ phone });
-    if (exists) {
-      return res.status(400).json({ message: "User already exists" });
+    // 🔒 Only ONE admin per shop
+    const adminExists = await User.findOne({
+      shopId,
+      role: "ADMIN"
+    });
+
+    if (adminExists) {
+      return res.status(403).json({
+        message: "Admin already exists for this shop"
+      });
+    }
+
+    // 🔒 Prevent duplicate phone globally
+    const phoneExists = await User.findOne({ phone });
+    if (phoneExists) {
+      return res.status(400).json({
+        message: "User already exists with this phone number"
+      });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -25,7 +42,7 @@ export const register = async (req, res) => {
       phone,
       email,
       password: hashedPassword,
-      role: role || "ADMIN",
+      role: "ADMIN",   // 🔐 forced
       shopId
     });
 
@@ -73,7 +90,7 @@ export const createWorker = async (req, res) => {
       email,
       password: hashedPassword,
       role: "WORKER",
-      shopId: req.user.shopId
+      shopId: req.user.shopId   // 🔗 inherit from admin
     });
 
     res.status(201).json({
@@ -98,18 +115,34 @@ export const login = async (req, res) => {
   try {
     const { phone, password } = req.body;
 
-    const user = await User.findOne({ phone }).select("+password");
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!phone || !password) {
+      return res.status(400).json({
+        message: "Phone and password are required"
+      });
+    }
 
-    if (!user.isActive)
-      return res.status(403).json({ message: "User is deactivated" });
+    const user = await User.findOne({ phone }).select("+password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({
+        message: "User is deactivated. Contact admin."
+      });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
+    if (!isMatch) {
       return res.status(401).json({ message: "Invalid password" });
+    }
 
     const token = jwt.sign(
-      { id: user._id, role: user.role, shopId: user.shopId },
+      {
+        id: user._id,
+        role: user.role,
+        shopId: user.shopId
+      },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -120,6 +153,7 @@ export const login = async (req, res) => {
       user: {
         _id: user._id,
         name: user.name,
+        phone: user.phone,
         role: user.role,
         shopId: user.shopId
       }

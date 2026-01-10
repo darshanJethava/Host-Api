@@ -7,6 +7,7 @@ import orderRoutes from "./routes/order.routes.js";
 import measurementRoutes from "./routes/measurement.routes.js";
 import invoiceRoutes from "./routes/invoice.routes.js";
 import workerRoutes from "./routes/worker.routes.js";
+import shopRoutes from "./routes/shop.routes.js";
 
 
 const app = express();
@@ -20,6 +21,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/measurements", measurementRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/workers", workerRoutes);
+app.use("/api/shops", shopRoutes);
 
 
 export default app;
